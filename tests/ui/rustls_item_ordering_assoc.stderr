@@ -84,5 +84,53 @@ note: should be placed before a constructor
 LL |         pub fn new() -> Self {
    |                ^^^
 
-error: aborting due to 7 previous errors
+error: incorrect ordering of associated items (an associated function must come before a constructor)
+  --> tests/ui/rustls_item_ordering_assoc.rs:174:16
+   |
+LL |         pub fn sugar_ratio() -> u8 {
+   |                ^^^^^^^^^^^
+   |
+note: should be placed before a constructor
+  --> tests/ui/rustls_item_ordering_assoc.rs:170:16
+   |
+LL |         pub fn maybe() -> Option<Self> {
+   |                ^^^^^
+
+error: incorrect ordering of associated items (an associated function must come before a constructor)
+  --> tests/ui/rustls_item_ordering_assoc.rs:190:16
+   |
+LL |         pub fn shelf_life() -> u8 {
+   |                ^^^^^^^^^^
+   |
+note: should be placed before a constructor
+  --> tests/ui/rustls_item_ordering_assoc.rs:185:16
+   |
+LL |         pub fn batch(count: usize) -> Vec<Self> {
+   |                ^^^^^
+
+error: incorrect ordering of associated items (an associated function must come before a constructor)
+  --> tests/ui/rustls_item_ordering_assoc.rs:206:16
+   |
+LL |         pub fn layer_count() -> u8 {
+   |                ^^^^^^^^^^^
+   |
+note: should be placed before a constructor
+  --> tests/ui/rustls_item_ordering_assoc.rs:201:16
+   |
+LL |         pub fn pair(left: u8, right: u8) -> (Self, Self) {
+   |                ^^^^
+
+error: incorrect ordering of constructors (the constructor taking the fewest arguments must come first)
+  --> tests/ui/rustls_item_ordering_assoc.rs:224:16
+   |
+LL |         pub fn new() -> Self {
+   |                ^^^
+   |
+note: should be placed before this constructor taking 2 arguments
+  --> tests/ui/rustls_item_ordering_assoc.rs:219:16
+   |
+LL |         pub fn coat(layers: u8, sugar: u8) -> Result<Option<Self>, ()> {
+   |                ^^^^
+
+error: aborting due to 11 previous errors
 

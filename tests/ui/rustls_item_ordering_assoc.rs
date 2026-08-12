@@ -142,6 +142,92 @@ pub mod nougatine {
     }
 }
 
+// The reverse of `nougatine`, which is the correct order.
+pub mod krokant {
+    pub struct Krokant;
+
+    impl Krokant {
+        pub fn caramel_stage() -> u16 {
+            150
+        }
+
+        pub fn new() -> Self {
+            Self
+        }
+    }
+}
+
+// A constructor is recognised by the type being implemented appearing anywhere
+// in the return type, not just as a bare `Self`. Each of these returns the type
+// wrapped in something else and is placed ahead of a plain associated function,
+// so the lint is what proves the wrapped form was recognised as a constructor:
+// had it been treated as an ordinary associated function, the two would share a
+// rank and nothing would be reported.
+pub mod dragee {
+    pub struct Dragee;
+
+    impl Dragee {
+        pub fn maybe() -> Option<Self> {
+            Some(Self)
+        }
+
+        pub fn sugar_ratio() -> u8 {
+            //~^ rustls_item_ordering
+            3
+        }
+    }
+}
+
+pub mod pastille {
+    pub struct Pastille;
+
+    impl Pastille {
+        pub fn batch(count: usize) -> Vec<Self> {
+            let _ = count;
+            Vec::new()
+        }
+
+        pub fn shelf_life() -> u8 {
+            //~^ rustls_item_ordering
+            12
+        }
+    }
+}
+
+pub mod gobstopper {
+    pub struct Gobstopper;
+
+    impl Gobstopper {
+        pub fn pair(left: u8, right: u8) -> (Self, Self) {
+            let _ = (left, right);
+            (Self, Self)
+        }
+
+        pub fn layer_count() -> u8 {
+            //~^ rustls_item_ordering
+            7
+        }
+    }
+}
+
+// The same, but misordered: the two argument constructor returning a nested
+// generic precedes the argument free one.
+pub mod comfit {
+    pub struct Comfit;
+
+    impl Comfit {
+        pub fn coat(layers: u8, sugar: u8) -> Result<Option<Self>, ()> {
+            let _ = (layers, sugar);
+            Ok(Some(Self))
+        }
+
+        pub fn new() -> Self {
+            //~^ rustls_item_ordering
+            Self
+        }
+    }
+}
+
 // Associated types have no defined position and are skipped entirely, so they
 // neither lint nor break the ordering of the items around them.
 pub mod semolina {

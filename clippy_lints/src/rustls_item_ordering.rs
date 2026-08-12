@@ -61,9 +61,10 @@ declare_clippy_lint! {
     /// 6. `const` values
     ///
     /// A constructor is an associated function whose return type mentions the
-    /// type being implemented, so `-> Self` and `-> Result<Self, Error>` both
-    /// count. "Public" means reachable from outside the crate, so a `pub fn` on
-    /// a type in a private module counts as private API.
+    /// type being implemented, whether directly as in `-> Self` or as a type
+    /// argument of another type, as in `-> Result<Self, Error>`. "Public" means
+    /// reachable from outside the crate, so a `pub fn` on a type in a private
+    /// module counts as private API.
     ///
     /// Associated types have no defined position and are ignored. The contents
     /// of trait `impl` blocks are not checked, as they follow the ordering of
