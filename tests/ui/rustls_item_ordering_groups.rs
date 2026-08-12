@@ -33,9 +33,13 @@ trait Ladoo {}
 trait Semifreddo {}
 
 // Type def, inherent impl, common trait impl: correctly ordered so far, so no
-// rank lint. `Mochi` does trip top-down, because it implements `Ladoo` above.
+// rank lint. `Mochi` does trip top-down twice, because its group implements
+// both `Ladoo` and `Semifreddo`, which are declared above it. The `Semifreddo`
+// use comes from the impl written on the `Halva` alias further down, which is
+// grouped with `Mochi`.
 struct Mochi;
 //~^ rustls_item_ordering
+//~^^ rustls_item_ordering
 
 impl Mochi {
     fn churro() -> Self {
@@ -49,36 +53,38 @@ impl Clone for Mochi {
     }
 }
 
-// `self_ty_def_id` peels references, so `&Mochi` is grouped with `Mochi`. This
-// specific trait impl therefore lands after `Mochi`'s common trait impl above
-// and IS linted.
+// A reference is a wrapper, so `&Mochi` is grouped with `Mochi` and ranks after
+// the impls written on `Mochi` itself. Landing after `Mochi`'s common trait
+// impl, it is linted, and the message names it as being on a wrapping type.
 impl Ladoo for &Mochi {}
 //~^ rustls_item_ordering
 
-// `self_ty_def_id` does NOT peel `Box`: the path resolves to `alloc::boxed::Box`,
-// which is a `DefKind::Struct` but whose `as_local()` fails, so the impl is
-// ungrouped. NOT linted, even though it sits in exactly the same position as the
-// `&Mochi` impl above. A surprising asymmetry with the reference case, and an
-// easy way to evade the lint. The same applies to any impl written on a foreign
-// wrapper of a local type.
+// `Box<Mochi>` is a wrapper too, so this behaves exactly like the `&Mochi` impl
+// above rather than escaping the lint. `Box` itself is foreign, so grouping has
+// to look through it to the local type inside.
 impl Ladoo for Box<Mochi> {}
-
-// A type alias used as the self type resolves to `DefKind::TyAlias`, which
-// `self_ty_def_id` rejects, so neither impl below is grouped with `Mochi`. NOT
-// linted, even though `Halva` *is* `Mochi` and both impls follow `Mochi`'s
-// common trait impl -- the inherent impl in particular would be a clear
-// violation if it were written as `impl Mochi`. Aliasing silently opts a type
-// out of the lint.
-type Halva = Mochi;
 //~^ rustls_item_ordering
 
+// The self type is resolved rather than read off the written path, so an impl
+// through an alias is an impl on the aliased type: both of these are grouped
+// with `Mochi` and follow its common trait impl, so both are linted. Note the
+// inherent impl is ranked as being on the type itself, not on a wrapper, since
+// the alias resolves straight to `Mochi`.
+//
+// The alias item itself is not reported for top-down ordering even though it
+// uses `Mochi` above it, because the impls below name `Halva` in turn: the two
+// use each other, and a mutual pair has no satisfiable order.
+type Halva = Mochi;
+
 impl Halva {
+    //~^ rustls_item_ordering
     fn gelato() -> Self {
         Mochi
     }
 }
 
 impl Semifreddo for Halva {}
+//~^ rustls_item_ordering
 
 // A generic local type. The self type path resolves to `Gelato` whatever the
 // type arguments are, so every impl below is grouped under `Gelato`.

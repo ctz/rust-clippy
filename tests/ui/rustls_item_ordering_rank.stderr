@@ -1,5 +1,5 @@
 error: incorrect ordering of items (an inherent `impl` block must come before a common trait `impl` block)
-  --> tests/ui/rustls_item_ordering_rank.rs:82:1
+  --> tests/ui/rustls_item_ordering_rank.rs:83:1
    |
 LL | / impl Macaron {
 LL | |
@@ -8,7 +8,7 @@ LL | | }
    | |_^
    |
 note: should be placed before a common trait `impl` block
-  --> tests/ui/rustls_item_ordering_rank.rs:76:1
+  --> tests/ui/rustls_item_ordering_rank.rs:77:1
    |
 LL | / impl Clone for Macaron {
 LL | |     fn clone(&self) -> Self {
@@ -20,7 +20,7 @@ LL | | }
    = help: to override `-D warnings` add `#[allow(clippy::rustls_item_ordering)]`
 
 error: incorrect ordering of items (a specific trait `impl` block must come before a common trait `impl` block)
-  --> tests/ui/rustls_item_ordering_rank.rs:97:1
+  --> tests/ui/rustls_item_ordering_rank.rs:98:1
    |
 LL | / impl ops::Not for Profiterole {
 LL | |
@@ -30,7 +30,7 @@ LL | | }
    | |_^
    |
 note: should be placed before a common trait `impl` block
-  --> tests/ui/rustls_item_ordering_rank.rs:91:1
+  --> tests/ui/rustls_item_ordering_rank.rs:92:1
    |
 LL | / impl fmt::Display for Profiterole {
 LL | |     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -40,13 +40,13 @@ LL | | }
    | |_^
 
 error: incorrect ordering of items (the type definition must come before an inherent `impl` block)
-  --> tests/ui/rustls_item_ordering_rank.rs:112:11
+  --> tests/ui/rustls_item_ordering_rank.rs:113:11
    |
 LL | pub union Stroopwafel {
    |           ^^^^^^^^^^^
    |
 note: should be placed before an inherent `impl` block
-  --> tests/ui/rustls_item_ordering_rank.rs:108:1
+  --> tests/ui/rustls_item_ordering_rank.rs:109:1
    |
 LL | / impl Stroopwafel {
 LL | |     pub fn stroopwafel() {}
@@ -54,13 +54,13 @@ LL | | }
    | |_^
 
 error: incorrect ordering of items (the type definition must come before a specific trait `impl` block)
-  --> tests/ui/rustls_item_ordering_rank.rs:128:12
+  --> tests/ui/rustls_item_ordering_rank.rs:129:12
    |
 LL | pub struct Financier;
    |            ^^^^^^^^^
    |
 note: should be placed before a specific trait `impl` block
-  --> tests/ui/rustls_item_ordering_rank.rs:120:1
+  --> tests/ui/rustls_item_ordering_rank.rs:121:1
    |
 LL | / impl ops::Not for Financier {
 LL | |     type Output = Self;
@@ -71,13 +71,13 @@ LL | | }
    | |_^
 
 error: incorrect ordering of items (the type definition must come before a common trait `impl` block)
-  --> tests/ui/rustls_item_ordering_rank.rs:139:12
+  --> tests/ui/rustls_item_ordering_rank.rs:140:12
    |
 LL | pub struct Madeleine;
    |            ^^^^^^^^^
    |
 note: should be placed before a common trait `impl` block
-  --> tests/ui/rustls_item_ordering_rank.rs:133:1
+  --> tests/ui/rustls_item_ordering_rank.rs:134:1
    |
 LL | / impl fmt::Debug for Madeleine {
 LL | |     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -87,7 +87,7 @@ LL | | }
    | |_^
 
 error: incorrect ordering of items (a specific trait `impl` block must come before a common trait `impl` block)
-  --> tests/ui/rustls_item_ordering_rank.rs:169:1
+  --> tests/ui/rustls_item_ordering_rank.rs:170:1
    |
 LL | / impl ops::Neg for Clafoutis {
 LL | |
@@ -97,7 +97,7 @@ LL | | }
    | |_^
    |
 note: should be placed before a common trait `impl` block
-  --> tests/ui/rustls_item_ordering_rank.rs:163:1
+  --> tests/ui/rustls_item_ordering_rank.rs:164:1
    |
 LL | / impl fmt::Debug for Clafoutis {
 LL | |     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -107,7 +107,7 @@ LL | | }
    | |_^
 
 error: incorrect ordering of items (an inherent `impl` block must come before a common trait `impl` block)
-  --> tests/ui/rustls_item_ordering_rank.rs:178:1
+  --> tests/ui/rustls_item_ordering_rank.rs:179:1
    |
 LL | / impl Clafoutis {
 LL | |
@@ -116,7 +116,7 @@ LL | | }
    | |_^
    |
 note: should be placed before a common trait `impl` block
-  --> tests/ui/rustls_item_ordering_rank.rs:163:1
+  --> tests/ui/rustls_item_ordering_rank.rs:164:1
    |
 LL | / impl fmt::Debug for Clafoutis {
 LL | |     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -126,7 +126,7 @@ LL | | }
    | |_^
 
 error: incorrect ordering of items (an inherent `impl` block must come before a specific trait `impl` block)
-  --> tests/ui/rustls_item_ordering_rank.rs:233:1
+  --> tests/ui/rustls_item_ordering_rank.rs:234:1
    |
 LL | / impl Tiramisu {
 LL | |
@@ -135,7 +135,7 @@ LL | | }
    | |_^
    |
 note: should be placed before a specific trait `impl` block
-  --> tests/ui/rustls_item_ordering_rank.rs:219:1
+  --> tests/ui/rustls_item_ordering_rank.rs:220:1
    |
 LL | / impl ops::Not for Tiramisu {
 LL | |     type Output = Self;
@@ -146,7 +146,7 @@ LL | | }
    | |_^
 
 error: incorrect ordering of items (an inherent `impl` block must come before a common trait `impl` block)
-  --> tests/ui/rustls_item_ordering_rank.rs:255:5
+  --> tests/ui/rustls_item_ordering_rank.rs:256:5
    |
 LL | /     impl Stroopwafel {
 LL | |
@@ -156,7 +156,7 @@ LL | |     }
    | |_____^
    |
 note: should be placed before a common trait `impl` block
-  --> tests/ui/rustls_item_ordering_rank.rs:249:5
+  --> tests/ui/rustls_item_ordering_rank.rs:250:5
    |
 LL | /     impl Clone for Stroopwafel {
 LL | |         fn clone(&self) -> Self {
@@ -165,5 +165,48 @@ LL | |         }
 LL | |     }
    | |_____^
 
-error: aborting due to 9 previous errors
+error: incorrect ordering of items (a specific trait `impl` block must come before a specific trait `impl` block on a wrapping type)
+  --> tests/ui/rustls_item_ordering_rank.rs:301:5
+   |
+LL |     impl Basbousa for Knafeh {}
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: should be placed before a specific trait `impl` block on a wrapping type
+  --> tests/ui/rustls_item_ordering_rank.rs:299:5
+   |
+LL |     impl Basbousa for Box<Knafeh> {}
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: incorrect ordering of items (an inherent `impl` block must come before a specific trait `impl` block on a wrapping type)
+  --> tests/ui/rustls_item_ordering_rank.rs:313:5
+   |
+LL | /     impl Bostock {
+LL | |
+LL | |         pub fn glaze() {}
+LL | |     }
+   | |_____^
+   |
+note: should be placed before a specific trait `impl` block on a wrapping type
+  --> tests/ui/rustls_item_ordering_rank.rs:311:5
+   |
+LL |     impl Tarte for &Bostock {}
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error: incorrect ordering of items (a specific trait `impl` block on a wrapping type must come before a common trait `impl` block)
+  --> tests/ui/rustls_item_ordering_rank.rs:332:5
+   |
+LL |     impl Cronut for Box<Sfogliatella> {}
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: should be placed before a common trait `impl` block
+  --> tests/ui/rustls_item_ordering_rank.rs:326:5
+   |
+LL | /     impl Clone for Sfogliatella {
+LL | |         fn clone(&self) -> Self {
+LL | |             Self
+LL | |         }
+LL | |     }
+   | |_____^
+
+error: aborting due to 12 previous errors
 

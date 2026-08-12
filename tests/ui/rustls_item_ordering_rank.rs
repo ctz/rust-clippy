@@ -8,14 +8,15 @@
 //! 3. specific trait `impl` blocks
 //! 4. common trait `impl` blocks (`Clone`, `Debug`, `Drop`, ... by default)
 //!
+//! Within each of 2 to 4, an `impl` written on the type itself precedes one
+//! written on a wrapper of it, such as `&Type` or `Box<Type>`. The cases at the
+//! bottom of this file cover that tiebreak.
+//!
 //! Ordering is not enforced between two items of the same rank, and items are
 //! grouped per type, so two correctly ordered types may be interleaved.
 //!
 //! `Not`, `Neg` and friends stand in for "specific" traits here, as they are
 //! absent from the default `rustls-common-traits` list.
-//!
-//! Every scenario lives at the crate root: see the note at the bottom of this
-//! file for why nothing below a `mod` can be used.
 
 use std::hash::{Hash, Hasher};
 use std::{fmt, ops};
@@ -257,6 +258,81 @@ mod baklava {
         // An inherent `impl` block after a common trait `impl` block.
         pub fn stroopwafel() {}
     }
+}
+
+// Within each rank, an impl written on the type itself precedes one written on
+// a wrapper of it. A fully correct sequence, with the local trait declared
+// below the group so that top-down ordering is satisfied too.
+//
+// Note two of the ranks cannot be written in Rust at all: an inherent impl on a
+// wrapper (`impl Box<Battenberg>`) is not permitted for a foreign type, and a
+// common trait impl on a wrapper (`impl Clone for Box<Battenberg>`) is barred by
+// the orphan rules. The latter is only reachable when a local trait is named by
+// `rustls-common-traits`.
+pub mod battenberg {
+    pub struct Battenberg;
+
+    impl Battenberg {
+        pub fn marzipan() {}
+    }
+
+    impl Lamington for Battenberg {}
+
+    // Both wrappers share a rank, so their relative order is not enforced.
+    impl Lamington for &Battenberg {}
+
+    impl Lamington for Box<Battenberg> {}
+
+    impl Clone for Battenberg {
+        fn clone(&self) -> Self {
+            Self
+        }
+    }
+
+    pub trait Lamington {}
+}
+
+// A specific trait impl on the type must precede one on a wrapper of it.
+pub mod knafeh {
+    pub struct Knafeh;
+
+    impl Basbousa for Box<Knafeh> {}
+
+    impl Basbousa for Knafeh {}
+    //~^ rustls_item_ordering
+
+    pub trait Basbousa {}
+}
+
+// An inherent impl must precede a specific trait impl on a wrapper.
+pub mod bostock {
+    pub struct Bostock;
+
+    impl Tarte for &Bostock {}
+
+    impl Bostock {
+        //~^ rustls_item_ordering
+        pub fn glaze() {}
+    }
+
+    pub trait Tarte {}
+}
+
+// A specific trait impl on a wrapper still outranks a common trait impl on the
+// type itself, since wrapping is only a tiebreak within each rank.
+pub mod sfogliatella {
+    pub struct Sfogliatella;
+
+    impl Clone for Sfogliatella {
+        fn clone(&self) -> Self {
+            Self
+        }
+    }
+
+    impl Cronut for Box<Sfogliatella> {}
+    //~^ rustls_item_ordering
+
+    pub trait Cronut {}
 }
 
 fn main() {}

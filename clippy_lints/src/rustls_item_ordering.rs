@@ -8,12 +8,11 @@ use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::DefId;
 use rustc_hir::intravisit::{Visitor, walk_expr, walk_path, walk_qpath};
 use rustc_hir::{
-    BodyId, Expr, ExprKind, HirId, ImplItem, ImplItemKind, ImplicitSelfKind, Item, ItemKind, Mod, Path, QPath, Ty,
-    TyKind,
+    BodyId, Expr, ExprKind, HirId, ImplItem, ImplItemKind, ImplicitSelfKind, Item, ItemKind, Mod, Path, QPath,
 };
 use rustc_lint::{LateContext, LateLintPass, LintContext as _};
 use rustc_middle::hir::nested_filter;
-use rustc_middle::ty::{AdtDef, AssocKind, TyCtxt, TypeckResults};
+use rustc_middle::ty::{self, AdtDef, AssocKind, GenericArgKind, TyCtxt, TypeckResults};
 use rustc_session::impl_lint_pass;
 use rustc_span::Span;
 
@@ -43,6 +42,30 @@ declare_clippy_lint! {
     /// `Drop`. Ordering is not enforced between implementations that fall into
     /// the same category, as relative specificity cannot be determined
     /// automatically.
+    ///
+    /// Within each of those categories, an `impl` written on the type itself
+    /// comes before one written on a type that merely wraps it, such as
+    /// `Box<Type>` or `&Type`:
+    ///
+    /// ```text
+    /// struct Type;
+    ///
+    /// impl Type                     // inherent, on the type
+    /// impl Box<Type>                // inherent, on a wrapper
+    ///
+    /// impl Specific for Type
+    /// impl Specific for Box<Type>
+    ///
+    /// impl Debug for Type           // common, on the type
+    /// impl Debug for Box<Type>      // common, on a wrapper
+    /// ```
+    ///
+    /// A generic type is not a wrapper of its own type arguments, so
+    /// `impl Wrapper<Type>` belongs to `Wrapper` rather than to `Type`.
+    ///
+    /// The self type is resolved before any of this, so an `impl` written
+    /// through a type alias is treated as an `impl` on the type the alias
+    /// names.
     ///
     /// Only `impl` blocks whose self type is defined in the same module are
     /// checked, since a type declared elsewhere gives nothing to be ordered
@@ -99,6 +122,25 @@ declare_clippy_lint! {
     /// [`items_after_test_module`]: https://rust-lang.github.io/rust-clippy/master/index.html#items_after_test_module
     /// [`arbitrary_source_item_ordering`]: https://rust-lang.github.io/rust-clippy/master/index.html#arbitrary_source_item_ordering
     ///
+    /// ### Module declarations, which cannot be checked
+    ///
+    /// The guidelines require module declarations (`mod foo;`) to be placed
+    /// after the imports but before all other items, while deliberately
+    /// allowing modules defined inline (`mod foo { .. }`) to sit among the
+    /// other items wherever the context makes sense.
+    ///
+    /// Neither is checked, because by the time a lint runs the two are
+    /// indistinguishable. A declaration is resolved to the contents of its file
+    /// during parsing, so both forms reach HIR as an `ItemKind::Mod` holding a
+    /// module body, and nothing records which spelling was used. Enforcing the
+    /// rule would therefore hoist inline modules to the top of the module along
+    /// with the declarations, contradicting the very guideline it implements.
+    ///
+    /// Note that `arbitrary_source_item_ordering` is not a way around this. Its
+    /// `module-item-order-groupings` option can place the `mod` item kind
+    /// before other kinds, but it works from the same HIR and so applies to
+    /// inline modules just the same.
+    ///
     /// ### Example
     /// ```no_run
     /// pub struct Cheesecake;
@@ -146,19 +188,38 @@ impl_lint_pass!(RustlsItemOrdering => [RUSTLS_ITEM_ORDERING]);
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Rank {
     TypeDef,
-    InherentImpl,
-    SpecificTraitImpl,
-    CommonTraitImpl,
+    InherentDirect,
+    InherentWrapped,
+    SpecificTraitDirect,
+    SpecificTraitWrapped,
+    CommonTraitDirect,
+    CommonTraitWrapped,
 }
 
 impl Rank {
+    /// The rank of an `impl` block, from the kind of trait it implements, if
+    /// any, and whether it is written on the type itself or on a wrapper.
+    fn of_impl(trait_is_common: Option<bool>, wrapping: Wrapping) -> Self {
+        match (trait_is_common, wrapping) {
+            (None, Wrapping::Direct) => Self::InherentDirect,
+            (None, Wrapping::Wrapped) => Self::InherentWrapped,
+            (Some(false), Wrapping::Direct) => Self::SpecificTraitDirect,
+            (Some(false), Wrapping::Wrapped) => Self::SpecificTraitWrapped,
+            (Some(true), Wrapping::Direct) => Self::CommonTraitDirect,
+            (Some(true), Wrapping::Wrapped) => Self::CommonTraitWrapped,
+        }
+    }
+
     /// How to refer to an item of this rank in a diagnostic.
     fn desc(self) -> &'static str {
         match self {
             Self::TypeDef => "the type definition",
-            Self::InherentImpl => "an inherent `impl` block",
-            Self::SpecificTraitImpl => "a specific trait `impl` block",
-            Self::CommonTraitImpl => "a common trait `impl` block",
+            Self::InherentDirect => "an inherent `impl` block",
+            Self::InherentWrapped => "an inherent `impl` block on a wrapping type",
+            Self::SpecificTraitDirect => "a specific trait `impl` block",
+            Self::SpecificTraitWrapped => "a specific trait `impl` block on a wrapping type",
+            Self::CommonTraitDirect => "a common trait `impl` block",
+            Self::CommonTraitWrapped => "a common trait `impl` block on a wrapping type",
         }
     }
 }
@@ -316,7 +377,7 @@ impl RustlsItemOrdering {
                 Some((item.owner_id.to_def_id(), Rank::TypeDef))
             },
             ItemKind::Impl(imp) => {
-                let self_ty = self_ty_def_id(imp.self_ty)?;
+                let (self_ty, wrapping) = impl_self_ty(cx, item)?;
 
                 // Only order against a type declared in the module being
                 // checked. This filters out blanket impls and impls for foreign
@@ -330,15 +391,14 @@ impl RustlsItemOrdering {
                     return None;
                 }
 
-                let rank = match imp.of_trait {
-                    None => Rank::InherentImpl,
-                    Some(header) => match header.trait_ref.trait_def_id() {
-                        Some(did) if self.common_traits.contains(&did) => Rank::CommonTraitImpl,
-                        _ => Rank::SpecificTraitImpl,
-                    },
-                };
+                let trait_is_common = imp.of_trait.map(|header| {
+                    header
+                        .trait_ref
+                        .trait_def_id()
+                        .is_some_and(|did| self.common_traits.contains(&did))
+                });
 
-                Some((self_ty, rank))
+                Some((self_ty, Rank::of_impl(trait_is_common, wrapping)))
             },
             _ => None,
         }
@@ -359,7 +419,7 @@ impl<'tcx> LateLintPass<'tcx> for RustlsItemOrdering {
         // Used to recognise constructors by their return type. An `impl` on a
         // type that is not an ADT has none, in which case no associated
         // function can be identified as a constructor.
-        let self_adt = self_ty_def_id(imp.self_ty).map(|did| cx.tcx.adt_def(did));
+        let self_adt = impl_self_ty(cx, item).map(|(did, _)| cx.tcx.adt_def(did));
 
         let mut prev: Option<(AssocRank, usize, &ImplItem<'_>)> = None;
 
@@ -475,10 +535,10 @@ fn node_key(cx: &LateContext<'_>, item: &Item<'_>) -> Option<DefId> {
         | ItemKind::Trait { .. }
         | ItemKind::TraitAlias(..)
         | ItemKind::TyAlias(..) => Some(item.owner_id.to_def_id()),
-        ItemKind::Impl(imp) => {
+        ItemKind::Impl(_) => {
             // An `impl` joins the node of the type it implements, provided that
             // type is declared in this module.
-            let did = self_ty_def_id(imp.self_ty)?;
+            let (did, _) = impl_self_ty(cx, item)?;
             let local = did.as_local()?;
             if cx.tcx.parent_module_from_def_id(local) != cx.tcx.parent_module_from_def_id(item.owner_id.def_id) {
                 return None;
@@ -580,20 +640,43 @@ impl<'tcx> Visitor<'tcx> for UsesVisitor<'_, 'tcx> {
     }
 }
 
-/// Reduces the self type of an `impl` block to the [`DefId`] of the type being
-/// implemented, peeling references.
+/// Whether an `impl` is written on a type itself, or on something wrapping it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Wrapping {
+    Direct,
+    Wrapped,
+}
+
+/// Reduces the self type of an `impl` block to the local type being
+/// implemented, and how that type was reached.
 ///
-/// Returns `None` if the self type is not a plain named type, as is the case
-/// for a blanket `impl` over a type parameter.
-fn self_ty_def_id(ty: &Ty<'_>) -> Option<DefId> {
-    match ty.kind {
-        TyKind::Ref(_, mut_ty) => self_ty_def_id(mut_ty.ty),
-        TyKind::Path(QPath::Resolved(_, path)) => match path.res {
-            Res::Def(DefKind::Struct | DefKind::Enum | DefKind::Union, did) => Some(did),
-            _ => None,
-        },
-        _ => None,
+/// The self type is taken from `type_of` rather than read off the written path,
+/// so that an `impl` written through a type alias is resolved to the type the
+/// alias names.
+///
+/// Returns `None` when no local type is involved, as is the case for a blanket
+/// `impl` over a type parameter, or an `impl` on a foreign or primitive type.
+fn impl_self_ty(cx: &LateContext<'_>, item: &Item<'_>) -> Option<(DefId, Wrapping)> {
+    let self_ty = cx.tcx.type_of(item.owner_id).instantiate_identity().skip_norm_wip();
+
+    // A local type written directly. Note this deliberately looks no further
+    // for a generic type such as `Gelato<Mochi>`, which belongs to `Gelato`.
+    if let ty::Adt(adt, _) = self_ty.kind()
+        && adt.did().is_local()
+    {
+        return Some((adt.did(), Wrapping::Direct));
     }
+
+    // Otherwise the first local type reached through a wrapper, covering both
+    // `&Mochi` and `Box<Mochi>`.
+    self_ty.walk().find_map(|arg| match arg.kind() {
+        GenericArgKind::Type(ty) => ty
+            .ty_adt_def()
+            .map(AdtDef::did)
+            .filter(|did| did.is_local())
+            .map(|did| (did, Wrapping::Wrapped)),
+        GenericArgKind::Lifetime(_) | GenericArgKind::Const(_) => None,
+    })
 }
 
 /// Determines the position an associated item must take within its inherent
