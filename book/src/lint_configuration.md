@@ -1051,6 +1051,20 @@ Whether the type itself in a struct or enum should be replaced with `Self` when 
 * [`use_self`](https://rust-lang.github.io/rust-clippy/master/index.html#use_self)
 
 
+## `rustls-common-traits`
+The traits whose implementations are considered "common", and are therefore required to be
+placed last among a type's `impl` blocks.
+
+Implementations of any trait not listed here are considered more specific, and are placed
+after the inherent `impl` blocks but before these.
+
+**Default Value:** `["core::fmt::Debug", "core::fmt::Display", "core::hash::Hash", "core::clone::Clone", "core::marker::Copy", "core::default::Default", "core::cmp::PartialEq", "core::cmp::PartialOrd", "core::cmp::Eq", "core::cmp::Ord", "core::ops::Drop"]`
+
+---
+**Affected lints:**
+* [`rustls_item_ordering`](https://rust-lang.github.io/rust-clippy/master/index.html#rustls_item_ordering)
+
+
 ## `semicolon-inside-block-ignore-singleline`
 Whether to lint only if it's multiline.
 

@@ -52,6 +52,20 @@ static DEFAULT_ALLOWED_PREFIXES: &[&str] = &["to", "as", "into", "from", "try_in
 static DEFAULT_ALLOWED_TRAITS_WITH_RENAMED_PARAMS: &[&str] =
     &["core::convert::From", "core::convert::TryFrom", "core::str::FromStr"];
 
+static DEFAULT_RUSTLS_COMMON_TRAITS: &[&str] = &[
+    "core::fmt::Debug",
+    "core::fmt::Display",
+    "core::hash::Hash",
+    "core::clone::Clone",
+    "core::marker::Copy",
+    "core::default::Default",
+    "core::cmp::PartialEq",
+    "core::cmp::PartialOrd",
+    "core::cmp::Eq",
+    "core::cmp::Ord",
+    "core::ops::Drop",
+];
+
 static DEFAULT_ALLOWED_SCRIPTS: &[&str] = &["Latin"];
 static DEFAULT_IGNORE_INTERIOR_MUTABILITY: &[&str] = &["bytes::Bytes"];
 
@@ -736,6 +750,13 @@ define_Conf! {
     /// Whether the type itself in a struct or enum should be replaced with `Self` when encountering recursive types.
     #[lints(use_self)]
     recursive_self_in_type_definitions("recursive-self-in-type-definitions"): bool = true,
+    /// The traits whose implementations are considered "common", and are therefore required to be
+    /// placed last among a type's `impl` blocks.
+    ///
+    /// Implementations of any trait not listed here are considered more specific, and are placed
+    /// after the inherent `impl` blocks but before these.
+    #[lints(rustls_item_ordering)]
+    rustls_common_traits("rustls-common-traits"): Vec<String> = DEFAULT_RUSTLS_COMMON_TRAITS,
     /// Whether to lint only if it's multiline.
     #[lints(semicolon_inside_block)]
     semicolon_inside_block_ignore_singleline("semicolon-inside-block-ignore-singleline"): bool = false,

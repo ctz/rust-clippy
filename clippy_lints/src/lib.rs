@@ -330,6 +330,7 @@ mod reserve_after_initialization;
 mod rest_when_destructuring_struct;
 mod return_self_not_must_use;
 mod returns;
+mod rustls_item_ordering;
 mod same_length_and_capacity;
 mod same_name_method;
 mod self_named_constructors;
@@ -869,6 +870,7 @@ rustc_lint::late_lint_methods!(
         BlockScrutinee: block_scrutinee::BlockScrutinee = block_scrutinee::BlockScrutinee,
         NonnullUncheckedOnBoxPtr: nonnull_unchecked_on_box_ptr::NonnullUncheckedOnBoxPtr = nonnull_unchecked_on_box_ptr::NonnullUncheckedOnBoxPtr::new(conf),
         NeedlessNonzeroGet: needless_nonzero_get::NeedlessNonzeroGet = needless_nonzero_get::NeedlessNonzeroGet::new(conf),
+        RustlsItemOrdering: rustls_item_ordering::RustlsItemOrdering = rustls_item_ordering::RustlsItemOrdering::new(tcx, conf),
         // add late passes here, used by `cargo dev new_lint`
     ]]
 );

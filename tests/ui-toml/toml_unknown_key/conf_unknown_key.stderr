@@ -80,6 +80,7 @@ LL | foobar = 42
            pass-by-value-size-limit
            pub-underscore-fields-behavior
            recursive-self-in-type-definitions
+           rustls-common-traits
            semicolon-inside-block-ignore-singleline
            semicolon-outside-block-ignore-multiline
            single-char-binding-names-threshold

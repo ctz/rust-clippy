@@ -1,0 +1,68 @@
+error: incorrect ordering of items (an inherent `impl` block must come before a common trait `impl` block)
+  --> tests/ui/rustls_item_ordering_suppress.rs:31:1
+   |
+LL | / impl Pavlova {
+LL | |
+LL | |     pub fn pavlova(&self) {}
+LL | | }
+   | |_^
+   |
+note: should be placed before a common trait `impl` block
+  --> tests/ui/rustls_item_ordering_suppress.rs:25:1
+   |
+LL | / impl Default for Pavlova {
+LL | |     fn default() -> Self {
+LL | |         Self
+LL | |     }
+LL | | }
+   | |_^
+   = note: `-D clippy::rustls-item-ordering` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::rustls_item_ordering)]`
+
+error: incorrect ordering of items (an inherent `impl` block must come before a common trait `impl` block)
+  --> tests/ui/rustls_item_ordering_suppress.rs:132:9
+   |
+LL | /         impl $name {
+LL | |
+LL | |             pub fn strudel(&self) {}
+LL | |         }
+   | |_________^
+...
+LL |   strudel!(Marzipan);
+   |   ------------------ in this macro invocation
+   |
+note: should be placed before a common trait `impl` block
+  --> tests/ui/rustls_item_ordering_suppress.rs:126:9
+   |
+LL | /         impl Default for $name {
+LL | |             fn default() -> Self {
+LL | |                 Self
+LL | |             }
+LL | |         }
+   | |_________^
+...
+LL |   strudel!(Marzipan);
+   |   ------------------ in this macro invocation
+   = note: this error originates in the macro `strudel` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: incorrect ordering of items (an inherent `impl` block must come before a common trait `impl` block)
+  --> tests/ui/rustls_item_ordering_suppress.rs:63:5
+   |
+LL | /     impl Dobos {
+LL | |
+LL | |         pub fn dobos(&self) {}
+LL | |     }
+   | |_____^
+   |
+note: should be placed before a common trait `impl` block
+  --> tests/ui/rustls_item_ordering_suppress.rs:57:5
+   |
+LL | /     impl Default for Dobos {
+LL | |         fn default() -> Self {
+LL | |             Self
+LL | |         }
+LL | |     }
+   | |_____^
+
+error: aborting due to 3 previous errors
+

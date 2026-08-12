@@ -1,0 +1,42 @@
+error: incorrect ordering of items (a specific trait `impl` block must come before a common trait `impl` block)
+  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:33:1
+   |
+LL | / impl core::fmt::Debug for Dobos {
+LL | |
+LL | |     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+LL | |         f.write_str("Dobos")
+LL | |     }
+LL | | }
+   | |_^
+   |
+note: should be placed before a common trait `impl` block
+  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:29:1
+   |
+LL | / impl Bombolone for Dobos {
+LL | |     fn bombolone(&self) {}
+LL | | }
+   | |_^
+   = note: `-D clippy::rustls-item-ordering` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::rustls_item_ordering)]`
+
+error: incorrect ordering of items (an inherent `impl` block must come before a common trait `impl` block)
+  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:50:1
+   |
+LL | / impl Praline {
+LL | |
+LL | |     pub fn praline(&self) {}
+LL | | }
+   | |_^
+   |
+note: should be placed before a common trait `impl` block
+  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:44:1
+   |
+LL | / impl Default for Praline {
+LL | |     fn default() -> Self {
+LL | |         Self
+LL | |     }
+LL | | }
+   | |_^
+
+error: aborting due to 2 previous errors
+

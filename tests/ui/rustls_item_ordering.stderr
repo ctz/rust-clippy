@@ -1,0 +1,25 @@
+error: incorrect ordering of items (an inherent `impl` block must come before a common trait `impl` block)
+  --> tests/ui/rustls_item_ordering.rs:11:1
+   |
+LL | / impl Cheesecake {
+LL | |
+LL | |     pub fn bake() -> Self {
+LL | |         Self
+LL | |     }
+LL | | }
+   | |_^
+   |
+note: should be placed before a common trait `impl` block
+  --> tests/ui/rustls_item_ordering.rs:5:1
+   |
+LL | / impl std::fmt::Debug for Cheesecake {
+LL | |     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+LL | |         f.write_str("Cheesecake")
+LL | |     }
+LL | | }
+   | |_^
+   = note: `-D clippy::rustls-item-ordering` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::rustls_item_ordering)]`
+
+error: aborting due to 1 previous error
+

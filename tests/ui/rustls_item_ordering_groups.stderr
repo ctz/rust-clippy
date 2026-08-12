@@ -1,0 +1,56 @@
+error: incorrect ordering of items (a specific trait `impl` block must come before a common trait `impl` block)
+  --> tests/ui/rustls_item_ordering_groups.rs:60:1
+   |
+LL | impl Ladoo for &Mochi {}
+   | ^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: should be placed before a common trait `impl` block
+  --> tests/ui/rustls_item_ordering_groups.rs:51:1
+   |
+LL | / impl Clone for Mochi {
+LL | |     fn clone(&self) -> Self {
+LL | |         Mochi
+LL | |     }
+LL | | }
+   | |_^
+   = note: `-D clippy::rustls-item-ordering` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::rustls_item_ordering)]`
+
+error: incorrect ordering of items (an inherent `impl` block must come before a common trait `impl` block)
+  --> tests/ui/rustls_item_ordering_groups.rs:116:1
+   |
+LL | / impl Gelato<Mochi> {
+LL | |
+LL | |     fn semifreddo() {}
+LL | | }
+   | |_^
+   |
+note: should be placed before a common trait `impl` block
+  --> tests/ui/rustls_item_ordering_groups.rs:107:1
+   |
+LL | / impl<T: Clone> Clone for Gelato<T> {
+LL | |     fn clone(&self) -> Self {
+LL | |         Gelato(self.0.clone())
+LL | |     }
+LL | | }
+   | |_^
+
+error: incorrect ordering of items (an inherent `impl` block must come before a specific trait `impl` block)
+  --> tests/ui/rustls_item_ordering_groups.rs:162:5
+   |
+LL | /     impl Kulfi {
+LL | |
+LL | |         fn gelato() -> Self {
+LL | |             Kulfi
+LL | |         }
+LL | |     }
+   | |_____^
+   |
+note: should be placed before a specific trait `impl` block
+  --> tests/ui/rustls_item_ordering_groups.rs:160:5
+   |
+LL |     impl Ladoo for Kulfi {}
+   |     ^^^^^^^^^^^^^^^^^^^^^^^
+
+error: aborting due to 3 previous errors
+

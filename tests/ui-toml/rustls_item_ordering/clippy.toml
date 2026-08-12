@@ -1,0 +1,11 @@
+# A non-default list of common traits:
+#
+# - `rustls_item_ordering::Bombolone` is a trait defined by the test file itself,
+#   so implementations of a locally defined trait must sort last.
+# - `core::fmt::Debug` is deliberately absent from the list, so a `Debug` impl is
+#   merely a specific trait impl and may precede a common trait impl.
+rustls-common-traits = [
+    "core::clone::Clone",
+    "core::default::Default",
+    "rustls_item_ordering::Bombolone",
+]
