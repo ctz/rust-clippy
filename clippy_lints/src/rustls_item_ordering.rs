@@ -141,6 +141,41 @@ declare_clippy_lint! {
     /// before other kinds, but it works from the same HIR and so applies to
     /// inline modules just the same.
     ///
+    /// ### Attribute ordering, which cannot be checked
+    ///
+    /// The guidelines order the attributes on an item so that documentation
+    /// comes first and the attributes affecting the meaning of the item come
+    /// last, and ask for the traits inside a `derive` to be listed
+    /// alphabetically:
+    ///
+    /// ```text
+    /// /// Doc comment always first
+    /// #[cfg(feature-gates)]
+    /// #[allow(lint-configuration)]
+    /// #[non_exhaustive]
+    /// #[derive(Clone, Debug)]
+    /// pub struct Foo;
+    /// ```
+    ///
+    /// Neither part is checked, because `derive` does not survive to be seen. A
+    /// `derive` is expanded into the implementations it generates and the
+    /// attribute itself is removed from the item, so by the time any lint runs
+    /// there is nothing left to inspect. This is not specific to late passes:
+    /// early passes run on the expanded AST and so are equally blind to it, and
+    /// Clippy does not offer a pre-expansion pass. The generated
+    /// implementations carry `#[automatically_derived]`, which records that a
+    /// `derive` happened but neither the order the traits were written in nor
+    /// where the attribute sat among its neighbours.
+    ///
+    /// The remaining attributes do survive, so the relative order of doc
+    /// comments, `cfg`, `allow` and `non_exhaustive` could be checked. That is
+    /// left undone deliberately: `derive` is the last entry in the required
+    /// order and the one most often written out of place, so a rule that could
+    /// not see it would give a misleading impression of enforcing the guideline.
+    ///
+    /// Checking this properly needs a tool that reads source as written, before
+    /// expansion, which is to say a formatter rather than a lint.
+    ///
     /// ### Example
     /// ```no_run
     /// pub struct Cheesecake;
