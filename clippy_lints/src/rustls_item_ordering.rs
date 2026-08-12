@@ -1,13 +1,14 @@
 use clippy_config::Conf;
 use clippy_utils::diagnostics::span_lint_hir_and_then;
 use clippy_utils::paths::{PathNS, lookup_path_str};
+use clippy_utils::ty::contains_adt_constructor;
 use clippy_utils::{is_cfg_test, is_in_cfg_test};
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::DefId;
-use rustc_hir::{HirId, Item, ItemKind, Mod, QPath, Ty, TyKind};
+use rustc_hir::{HirId, ImplItem, ImplItemKind, ImplicitSelfKind, Item, ItemKind, Mod, QPath, Ty, TyKind};
 use rustc_lint::{LateContext, LateLintPass, LintContext as _};
-use rustc_middle::ty::TyCtxt;
+use rustc_middle::ty::{AdtDef, AssocKind, TyCtxt};
 use rustc_session::impl_lint_pass;
 
 declare_clippy_lint! {
@@ -40,6 +41,27 @@ declare_clippy_lint! {
     /// Only `impl` blocks whose self type is defined in the same module are
     /// checked, since a type declared elsewhere gives nothing to be ordered
     /// against.
+    ///
+    /// ### Ordering associated items within an inherent `impl` block
+    ///
+    /// Associated items must appear in this order:
+    ///
+    /// 0. Associated functions (that is, `fn foo() {}` instead of `fn foo(&self) {}`)
+    /// 1. Constructors, starting with the constructor that takes the least arguments
+    /// 2. Public API that takes a `&mut self`
+    /// 3. Public API that takes a `&self`
+    /// 4. Private API that takes a `&mut self`
+    /// 5. Private API that takes a `&self`
+    /// 6. `const` values
+    ///
+    /// A constructor is an associated function whose return type mentions the
+    /// type being implemented, so `-> Self` and `-> Result<Self, Error>` both
+    /// count. "Public" means reachable from outside the crate, so a `pub fn` on
+    /// a type in a private module counts as private API.
+    ///
+    /// Associated types have no defined position and are ignored. The contents
+    /// of trait `impl` blocks are not checked, as they follow the ordering of
+    /// the trait definition.
     ///
     /// ### Example
     /// ```no_run
@@ -101,6 +123,36 @@ impl Rank {
             Self::InherentImpl => "an inherent `impl` block",
             Self::SpecificTraitImpl => "a specific trait `impl` block",
             Self::CommonTraitImpl => "a common trait `impl` block",
+        }
+    }
+}
+
+/// The position an associated item is required to take within an inherent
+/// `impl` block.
+///
+/// The ordering of this enum is the ordering the lint enforces.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+enum AssocRank {
+    AssocFn,
+    Constructor,
+    PublicMut,
+    PublicRef,
+    PrivateMut,
+    PrivateRef,
+    Const,
+}
+
+impl AssocRank {
+    /// How to refer to an associated item of this rank in a diagnostic.
+    fn desc(self) -> &'static str {
+        match self {
+            Self::AssocFn => "an associated function",
+            Self::Constructor => "a constructor",
+            Self::PublicMut => "public API taking `&mut self`",
+            Self::PublicRef => "public API taking `&self`",
+            Self::PrivateMut => "private API taking `&mut self`",
+            Self::PrivateRef => "private API taking `&self`",
+            Self::Const => "a `const` value",
         }
     }
 }
@@ -167,6 +219,68 @@ impl RustlsItemOrdering {
 }
 
 impl<'tcx> LateLintPass<'tcx> for RustlsItemOrdering {
+    fn check_item(&mut self, cx: &LateContext<'tcx>, item: &'tcx Item<'tcx>) {
+        // Only inherent `impl` blocks have an ordering defined for them. The
+        // contents of a trait `impl` follow the trait's own ordering.
+        let ItemKind::Impl(imp) = item.kind else {
+            return;
+        };
+        if imp.of_trait.is_some() || is_in_cfg_test(cx.tcx, item.hir_id()) || is_cfg_test(cx.tcx, item.hir_id()) {
+            return;
+        }
+
+        // Used to recognise constructors by their return type. An `impl` on a
+        // type that is not an ADT has none, in which case no associated
+        // function can be identified as a constructor.
+        let self_adt = self_ty_def_id(imp.self_ty).map(|did| cx.tcx.adt_def(did));
+
+        let mut prev: Option<(AssocRank, usize, &ImplItem<'_>)> = None;
+
+        for &id in imp.items {
+            let assoc_item = cx.tcx.hir_impl_item(id);
+            if assoc_item.span.in_external_macro(cx.sess().source_map()) {
+                continue;
+            }
+
+            let Some((rank, arity)) = assoc_rank(cx, assoc_item, self_adt) else {
+                continue;
+            };
+
+            if let Some((prev_rank, prev_arity, prev_item)) = prev {
+                if rank < prev_rank {
+                    lint_assoc_item(
+                        cx,
+                        assoc_item,
+                        prev_item,
+                        format!(
+                            "incorrect ordering of associated items ({} must come before {})",
+                            rank.desc(),
+                            prev_rank.desc()
+                        ),
+                        format!("should be placed before {}", prev_rank.desc()),
+                    );
+                    continue;
+                }
+
+                // Constructors are additionally ordered by how many arguments
+                // they take, fewest first.
+                if rank == AssocRank::Constructor && prev_rank == AssocRank::Constructor && arity < prev_arity {
+                    lint_assoc_item(
+                        cx,
+                        assoc_item,
+                        prev_item,
+                        "incorrect ordering of constructors (the constructor taking the fewest arguments must come first)"
+                            .to_owned(),
+                        format!("should be placed before this constructor taking {prev_arity} arguments"),
+                    );
+                    continue;
+                }
+            }
+
+            prev = Some((rank, arity, assoc_item));
+        }
+    }
+
     fn check_mod(&mut self, cx: &LateContext<'tcx>, module: &'tcx Mod<'tcx>, _: HirId) {
         // The highest rank seen so far for each type, and the item that set it.
         let mut seen: FxHashMap<DefId, (Rank, &Item<'_>)> = FxHashMap::default();
@@ -218,6 +332,83 @@ fn self_ty_def_id(ty: &Ty<'_>) -> Option<DefId> {
         },
         _ => None,
     }
+}
+
+/// Determines the position an associated item must take within its inherent
+/// `impl` block, along with the number of arguments it takes.
+///
+/// Returns `None` for associated items that have no defined position, which is
+/// the case for associated types.
+fn assoc_rank<'tcx>(
+    cx: &LateContext<'tcx>,
+    item: &ImplItem<'tcx>,
+    self_adt: Option<AdtDef<'tcx>>,
+) -> Option<(AssocRank, usize)> {
+    match item.kind {
+        ImplItemKind::Const(..) => Some((AssocRank::Const, 0)),
+        ImplItemKind::Type(..) => None,
+        ImplItemKind::Fn(sig, _) => {
+            let arity = sig.decl.inputs.len();
+
+            // Taken from the associated item rather than `implicit_self` so
+            // that an explicitly typed receiver such as `self: Arc<Self>` is
+            // still recognised as a method.
+            let has_self = matches!(
+                cx.tcx.associated_item(item.owner_id).kind,
+                AssocKind::Fn { has_self: true, .. }
+            );
+
+            if !has_self {
+                // A constructor is an associated function that produces the
+                // type being implemented, whether directly as `Self` or wrapped
+                // as in `Result<Self, Error>`.
+                let is_constructor = self_adt.is_some_and(|adt| {
+                    let ret = cx
+                        .tcx
+                        .fn_sig(item.owner_id)
+                        .instantiate_identity()
+                        .skip_norm_wip()
+                        .output()
+                        .skip_binder();
+                    contains_adt_constructor(ret, adt)
+                });
+
+                return Some((
+                    if is_constructor {
+                        AssocRank::Constructor
+                    } else {
+                        AssocRank::AssocFn
+                    },
+                    arity,
+                ));
+            }
+
+            // A receiver taken by value neither mutates through a reference nor
+            // borrows, so it is grouped with `&self` rather than `&mut self`.
+            let takes_mut = matches!(sig.decl.implicit_self(), ImplicitSelfKind::RefMut);
+            let exported = cx.effective_visibilities.is_exported(item.owner_id.def_id);
+
+            let rank = match (exported, takes_mut) {
+                (true, true) => AssocRank::PublicMut,
+                (true, false) => AssocRank::PublicRef,
+                (false, true) => AssocRank::PrivateMut,
+                (false, false) => AssocRank::PrivateRef,
+            };
+
+            Some((rank, arity))
+        },
+    }
+}
+
+fn lint_assoc_item(cx: &LateContext<'_>, item: &ImplItem<'_>, before_item: &ImplItem<'_>, msg: String, note: String) {
+    // Catches false positives where generated code gets linted.
+    if item.ident.span == before_item.ident.span {
+        return;
+    }
+
+    span_lint_hir_and_then(cx, RUSTLS_ITEM_ORDERING, item.hir_id(), item.ident.span, msg, |diag| {
+        diag.span_note(before_item.ident.span, note);
+    });
 }
 
 fn lint_item(cx: &LateContext<'_>, item: &Item<'_>, rank: Rank, before_item: &Item<'_>, before_rank: Rank) {
