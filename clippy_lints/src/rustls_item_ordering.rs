@@ -69,6 +69,35 @@ declare_clippy_lint! {
     /// of trait `impl` blocks are not checked, as they follow the ordering of
     /// the trait definition.
     ///
+    /// ### Test modules
+    ///
+    /// The contents of a `#[cfg(test)]` module are not checked by any of the
+    /// rules above, and neither are items carrying that attribute directly.
+    ///
+    /// ### Ordering rules deliberately left to other tools
+    ///
+    /// Imports are not checked. The guidelines call for three blocks of
+    /// imports -- `std`, then external crates, then crate-internal -- but
+    /// rustfmt already orders imports, so a rule here would only conflict with
+    /// it. See rustfmt's `group_imports` and `imports_granularity` options.
+    ///
+    /// The position of a `#[cfg(test)]` module is not checked, even though the
+    /// guidelines require it to be the very last item in a module. Clippy's
+    /// [`items_after_test_module`] lint already does this, and being in the
+    /// `style` category it is enabled by default.
+    ///
+    /// The ordering of `enum` variants is not checked, even though the
+    /// guidelines ask for them to be listed alphabetically. Clippy's
+    /// [`arbitrary_source_item_ordering`] lint already does this, and can be
+    /// enabled alongside this one with:
+    ///
+    /// ```toml
+    /// source-item-ordering = ["enum"]
+    /// ```
+    ///
+    /// [`items_after_test_module`]: https://rust-lang.github.io/rust-clippy/master/index.html#items_after_test_module
+    /// [`arbitrary_source_item_ordering`]: https://rust-lang.github.io/rust-clippy/master/index.html#arbitrary_source_item_ordering
+    ///
     /// ### Example
     /// ```no_run
     /// pub struct Cheesecake;
