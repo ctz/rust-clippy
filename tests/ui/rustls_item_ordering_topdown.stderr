@@ -1,0 +1,112 @@
+error: `beat` uses `MARSALA`, which is defined above it
+  --> tests/ui/rustls_item_ordering_topdown.rs:21:12
+   |
+LL |     pub fn beat() -> u8 {
+   |            ^^^^
+   |
+note: `MARSALA` could be placed below `beat` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_topdown.rs:19:11
+   |
+LL |     const MARSALA: u8 = 1;
+   |           ^^^^^^^
+   = note: `-D clippy::rustls-item-ordering` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::rustls_item_ordering)]`
+
+error: `bake` uses `grind`, which is defined above it
+  --> tests/ui/rustls_item_ordering_topdown.rs:33:12
+   |
+LL |     pub fn bake() -> u8 {
+   |            ^^^^
+   |
+note: `grind` could be placed below `bake` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_topdown.rs:29:12
+   |
+LL |     pub fn grind() -> u8 {
+   |            ^^^^^
+
+error: `layer` uses `Meringue`, which is defined above it
+  --> tests/ui/rustls_item_ordering_topdown.rs:44:12
+   |
+LL |     pub fn layer() -> Meringue {
+   |            ^^^^^
+   |
+note: `Meringue` could be placed below `layer` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_topdown.rs:42:16
+   |
+LL |     pub struct Meringue;
+   |                ^^^^^^^^
+
+error: `Roulade` uses `Sponge`, which is defined above it
+  --> tests/ui/rustls_item_ordering_topdown.rs:56:16
+   |
+LL |     pub struct Roulade;
+   |                ^^^^^^^
+   |
+note: `Sponge` could be placed below `Roulade` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_topdown.rs:54:16
+   |
+LL |     pub struct Sponge;
+   |                ^^^^^^
+
+error: `decorate` uses `Icing`, which is defined above it
+  --> tests/ui/rustls_item_ordering_topdown.rs:75:12
+   |
+LL |     pub fn decorate(icing: &Icing) {
+   |            ^^^^^^^^
+   |
+note: `Icing` could be placed below `decorate` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_topdown.rs:69:16
+   |
+LL |     pub struct Icing;
+   |                ^^^^^
+
+error: `curl` uses `Wafer`, which is defined above it
+  --> tests/ui/rustls_item_ordering_topdown.rs:91:12
+   |
+LL |     pub fn curl() -> Wafer {
+   |            ^^^^
+   |
+note: `Wafer` could be placed below `curl` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_topdown.rs:83:16
+   |
+LL |     pub struct Wafer;
+   |                ^^^^^
+
+error: `crumble` uses `ALMOND`, which is defined above it
+  --> tests/ui/rustls_item_ordering_topdown.rs:113:12
+   |
+LL |     pub fn crumble() -> u8 {
+   |            ^^^^^^^
+   |
+note: `ALMOND` could be placed below `crumble` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_topdown.rs:111:11
+   |
+LL |     const ALMOND: u8 = 1;
+   |           ^^^^^^
+
+error: `Stollen` uses `Marzipan`, which is defined above it
+  --> tests/ui/rustls_item_ordering_topdown.rs:132:16
+   |
+LL |     pub struct Stollen {
+   |                ^^^^^^^
+   |
+note: `Marzipan` could be placed below `Stollen` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_topdown.rs:130:16
+   |
+LL |     pub struct Marzipan;
+   |                ^^^^^^^^
+
+error: `Panforte` uses `Spiced`, which is defined above it
+  --> tests/ui/rustls_item_ordering_topdown.rs:144:16
+   |
+LL |     pub struct Panforte;
+   |                ^^^^^^^^
+   |
+note: `Spiced` could be placed below `Panforte` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_topdown.rs:140:15
+   |
+LL |     pub trait Spiced {
+   |               ^^^^^^
+
+error: aborting due to 9 previous errors
+

@@ -1,0 +1,88 @@
+error: incorrect ordering of associated items (a constructor must come before a `const` value)
+  --> tests/ui/rustls_item_ordering_assoc.rs:51:16
+   |
+LL |         pub fn new() -> Self {
+   |                ^^^
+   |
+note: should be placed before a `const` value
+  --> tests/ui/rustls_item_ordering_assoc.rs:49:19
+   |
+LL |         pub const CREAM: u8 = 1;
+   |                   ^^^^^
+   = note: `-D clippy::rustls-item-ordering` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::rustls_item_ordering)]`
+
+error: incorrect ordering of associated items (a constructor must come before public API taking `&self`)
+  --> tests/ui/rustls_item_ordering_assoc.rs:65:16
+   |
+LL |         pub fn new() -> Self {
+   |                ^^^
+   |
+note: should be placed before public API taking `&self`
+  --> tests/ui/rustls_item_ordering_assoc.rs:63:16
+   |
+LL |         pub fn curdle(&self) {}
+   |                ^^^^^^
+
+error: incorrect ordering of associated items (public API taking `&mut self` must come before public API taking `&self`)
+  --> tests/ui/rustls_item_ordering_assoc.rs:81:16
+   |
+LL |         pub fn stir(&mut self) {}
+   |                ^^^^
+   |
+note: should be placed before public API taking `&self`
+  --> tests/ui/rustls_item_ordering_assoc.rs:77:16
+   |
+LL |         pub fn sweetness(&self) -> u8 {
+   |                ^^^^^^^^^
+
+error: incorrect ordering of associated items (public API taking `&self` must come before private API taking `&self`)
+  --> tests/ui/rustls_item_ordering_assoc.rs:93:16
+   |
+LL |         pub fn snap(&self) {}
+   |                ^^^^
+   |
+note: should be placed before private API taking `&self`
+  --> tests/ui/rustls_item_ordering_assoc.rs:91:12
+   |
+LL |         fn shatter(&self) {}
+   |            ^^^^^^^
+
+error: incorrect ordering of associated items (private API taking `&mut self` must come before private API taking `&self`)
+  --> tests/ui/rustls_item_ordering_assoc.rs:105:12
+   |
+LL |         fn pull(&mut self) {}
+   |            ^^^^
+   |
+note: should be placed before private API taking `&self`
+  --> tests/ui/rustls_item_ordering_assoc.rs:103:12
+   |
+LL |         fn pulled(&self) {}
+   |            ^^^^^^
+
+error: incorrect ordering of constructors (the constructor taking the fewest arguments must come first)
+  --> tests/ui/rustls_item_ordering_assoc.rs:121:16
+   |
+LL |         pub fn new() -> Self {
+   |                ^^^
+   |
+note: should be placed before this constructor taking 2 arguments
+  --> tests/ui/rustls_item_ordering_assoc.rs:116:16
+   |
+LL |         pub fn with_cream(cream: u8, sugar: u8) -> Self {
+   |                ^^^^^^^^^^
+
+error: incorrect ordering of associated items (an associated function must come before a constructor)
+  --> tests/ui/rustls_item_ordering_assoc.rs:138:16
+   |
+LL |         pub fn roast_temperature() -> u16 {
+   |                ^^^^^^^^^^^^^^^^^
+   |
+note: should be placed before a constructor
+  --> tests/ui/rustls_item_ordering_assoc.rs:134:16
+   |
+LL |         pub fn new() -> Self {
+   |                ^^^
+
+error: aborting due to 7 previous errors
+

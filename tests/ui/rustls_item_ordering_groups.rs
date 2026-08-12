@@ -6,14 +6,9 @@
 // every expected silence) is really a statement about which group an item
 // landed in.
 //
-// NOTE: the module comparison in `classify` is off by one. It compares
-// `parent_module_from_def_id(self_ty)` against `parent_module(module)`, but
-// `parent_module` of a `mod` item's own `HirId` is the module *containing* that
-// module -- `parent_module_from_def_id` unconditionally steps to the parent
-// before looking for a `DefKind::Mod`. The crate root is the only module that
-// is its own "parent", so ordering is only ever enforced at the crate root, and
-// inside a `mod` the lint checks impls against the *parent* module's types. The
-// affected cases are marked BUG below.
+// NOTE: the traits used here are declared at the top of the file, above the
+// types that implement them, so several types additionally trip the top-down
+// ordering rule. Those diagnostics are incidental to what this file is testing.
 
 trait Churro {}
 
@@ -37,10 +32,10 @@ trait Ladoo {}
 
 trait Semifreddo {}
 
-// `Mochi` is defined in the crate root, the one module where ordering really is
-// enforced. Type def, inherent impl, common trait impl: correctly ordered so
-// far, no lint.
+// Type def, inherent impl, common trait impl: correctly ordered so far, so no
+// rank lint. `Mochi` does trip top-down, because it implements `Ladoo` above.
 struct Mochi;
+//~^ rustls_item_ordering
 
 impl Mochi {
     fn churro() -> Self {
@@ -75,6 +70,7 @@ impl Ladoo for Box<Mochi> {}
 // violation if it were written as `impl Mochi`. Aliasing silently opts a type
 // out of the lint.
 type Halva = Mochi;
+//~^ rustls_item_ordering
 
 impl Halva {
     fn gelato() -> Self {
@@ -87,6 +83,8 @@ impl Semifreddo for Halva {}
 // A generic local type. The self type path resolves to `Gelato` whatever the
 // type arguments are, so every impl below is grouped under `Gelato`.
 struct Gelato<T>(T);
+//~^ rustls_item_ordering
+//~^^ rustls_item_ordering
 
 impl<T> Gelato<T> {
     fn ladoo(self) -> T {
@@ -120,10 +118,12 @@ impl Gelato<Mochi> {
 
 // Two types in one module with interleaved items. Each type gets its own entry
 // in the `seen` map, so interleaving is fine as long as each type's own items
-// are individually in order. No lints.
+// are individually in order. No rank lints; both trip top-down via `Ladoo`.
 struct Affogato;
+//~^ rustls_item_ordering
 
 struct Bienenstich;
+//~^ rustls_item_ordering
 
 impl Affogato {
     fn mochi() {}

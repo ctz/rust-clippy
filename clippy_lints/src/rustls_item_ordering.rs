@@ -6,10 +6,16 @@ use clippy_utils::{is_cfg_test, is_in_cfg_test};
 use rustc_data_structures::fx::{FxHashMap, FxHashSet};
 use rustc_hir::def::{DefKind, Res};
 use rustc_hir::def_id::DefId;
-use rustc_hir::{HirId, ImplItem, ImplItemKind, ImplicitSelfKind, Item, ItemKind, Mod, QPath, Ty, TyKind};
+use rustc_hir::intravisit::{Visitor, walk_expr, walk_path, walk_qpath};
+use rustc_hir::{
+    BodyId, Expr, ExprKind, HirId, ImplItem, ImplItemKind, ImplicitSelfKind, Item, ItemKind, Mod, Path, QPath, Ty,
+    TyKind,
+};
 use rustc_lint::{LateContext, LateLintPass, LintContext as _};
-use rustc_middle::ty::{AdtDef, AssocKind, TyCtxt};
+use rustc_middle::hir::nested_filter;
+use rustc_middle::ty::{AdtDef, AssocKind, TyCtxt, TypeckResults};
 use rustc_session::impl_lint_pass;
+use rustc_span::Span;
 
 declare_clippy_lint! {
     /// ### What it does
@@ -177,6 +183,97 @@ impl RustlsItemOrdering {
         Self { common_traits }
     }
 
+    /// Checks that a module is ordered top-down: an item must appear above the
+    /// items it uses.
+    fn check_top_down<'tcx>(cx: &LateContext<'tcx>, module: &'tcx Mod<'tcx>) {
+        // Nodes in source order, so a node's index is also its position.
+        let mut nodes: Vec<Node<'tcx>> = Vec::new();
+        let mut node_of: FxHashMap<DefId, usize> = FxHashMap::default();
+
+        for &item_id in module.item_ids {
+            let item = cx.tcx.hir_item(item_id);
+            if is_cfg_test(cx.tcx, item.hir_id())
+                || is_in_cfg_test(cx.tcx, item.hir_id())
+                || item.span.in_external_macro(cx.sess().source_map())
+            {
+                continue;
+            }
+
+            let Some(key) = node_key(cx, item) else {
+                continue;
+            };
+
+            let node = *node_of.entry(key).or_insert_with(|| {
+                nodes.push(Node {
+                    key,
+                    span: item.kind.ident().map_or(item.span, |ident| ident.span),
+                    hir_id: item.hir_id(),
+                    items: Vec::new(),
+                });
+                nodes.len() - 1
+            });
+
+            // Lets a reference to any item of a node find that node.
+            node_of.insert(item.owner_id.to_def_id(), node);
+            nodes[node].items.push(item);
+        }
+
+        let mut edges = FxHashSet::default();
+        for (current, node) in nodes.iter().enumerate() {
+            let mut visitor = UsesVisitor {
+                cx,
+                node_of: &node_of,
+                current,
+                typeck: None,
+                edges: &mut edges,
+            };
+            for item in &node.items {
+                visitor.visit_item(item);
+            }
+        }
+
+        // Sorted so that the order diagnostics are emitted in does not depend
+        // on the iteration order of the edge set.
+        #[allow(rustc::potential_query_instability, reason = "the results are sorted below")]
+        let mut violations: Vec<_> = edges
+            .iter()
+            .copied()
+            // An item must appear above what it uses, so an edge pointing at an
+            // earlier node is the wrong way round.
+            .filter(|&(user, used)| used < user)
+            // Two items using each other cannot both be satisfied, so neither is
+            // reported.
+            .filter(|&(user, used)| !edges.contains(&(used, user)))
+            .collect();
+        violations.sort_unstable();
+
+        for (user, used) in violations {
+            let (user, target) = (&nodes[user], &nodes[used]);
+
+            span_lint_hir_and_then(
+                cx,
+                RUSTLS_ITEM_ORDERING,
+                user.hir_id,
+                user.span,
+                format!(
+                    "`{}` uses `{}`, which is defined above it",
+                    cx.tcx.item_name(user.key),
+                    cx.tcx.item_name(target.key),
+                ),
+                |diag| {
+                    diag.span_note(
+                        target.span,
+                        format!(
+                            "`{}` could be placed below `{}` to maintain top-down ordering",
+                            cx.tcx.item_name(target.key),
+                            cx.tcx.item_name(user.key),
+                        ),
+                    );
+                },
+            );
+        }
+    }
+
     /// Determines the type an item belongs to, and the position it must take
     /// within that type's items.
     ///
@@ -315,6 +412,141 @@ impl<'tcx> LateLintPass<'tcx> for RustlsItemOrdering {
                 },
             }
         }
+
+        Self::check_top_down(cx, module);
+    }
+}
+
+/// A single position in the top-down ordering of a module.
+///
+/// A type definition and its `impl` blocks form one node, so that the ordering
+/// of a type against its own `impl` blocks is left to the rank rules and the
+/// items a type uses are required to sit below the type as a whole.
+struct Node<'tcx> {
+    /// The item this node is named and reported by.
+    key: DefId,
+    span: Span,
+    hir_id: HirId,
+    items: Vec<&'tcx Item<'tcx>>,
+}
+
+/// Determines the node an item belongs to.
+///
+/// Returns `None` for items that take no part in the ordering, such as imports
+/// and module declarations.
+fn node_key(cx: &LateContext<'_>, item: &Item<'_>) -> Option<DefId> {
+    match item.kind {
+        ItemKind::Struct(..)
+        | ItemKind::Enum(..)
+        | ItemKind::Union(..)
+        | ItemKind::Fn { .. }
+        | ItemKind::Const(..)
+        | ItemKind::Static(..)
+        | ItemKind::Trait { .. }
+        | ItemKind::TraitAlias(..)
+        | ItemKind::TyAlias(..) => Some(item.owner_id.to_def_id()),
+        ItemKind::Impl(imp) => {
+            // An `impl` joins the node of the type it implements, provided that
+            // type is declared in this module.
+            let did = self_ty_def_id(imp.self_ty)?;
+            let local = did.as_local()?;
+            if cx.tcx.parent_module_from_def_id(local) != cx.tcx.parent_module_from_def_id(item.owner_id.def_id) {
+                return None;
+            }
+            Some(did)
+        },
+        _ => None,
+    }
+}
+
+/// Collects the nodes referenced from within a node, so that the module's
+/// "uses" graph can be built.
+struct UsesVisitor<'a, 'tcx> {
+    cx: &'a LateContext<'tcx>,
+    /// Every [`DefId`] belonging to a node, mapped to that node's index.
+    node_of: &'a FxHashMap<DefId, usize>,
+    /// The node whose items are currently being walked.
+    current: usize,
+    /// The type checking results of the body being walked, needed to resolve
+    /// method calls, which have no path to resolve.
+    typeck: Option<&'tcx TypeckResults<'tcx>>,
+    edges: &'a mut FxHashSet<(usize, usize)>,
+}
+
+impl UsesVisitor<'_, '_> {
+    /// Records a use of `did` by the node currently being walked.
+    ///
+    /// A reference is usually to an item within a node rather than to the node
+    /// itself — a method rather than the `impl` block holding it — so the
+    /// parents are walked until a node is found.
+    fn record(&mut self, did: DefId) {
+        let mut next = did.is_local().then_some(did);
+
+        while let Some(did) = next {
+            if let Some(&node) = self.node_of.get(&did) {
+                if node != self.current {
+                    self.edges.insert((self.current, node));
+                }
+                return;
+            }
+            next = self.cx.tcx.opt_parent(did);
+        }
+    }
+}
+
+impl<'tcx> Visitor<'tcx> for UsesVisitor<'_, 'tcx> {
+    type NestedFilter = nested_filter::All;
+
+    fn maybe_tcx(&mut self) -> Self::MaybeTyCtxt {
+        self.cx.tcx
+    }
+
+    fn visit_nested_body(&mut self, id: BodyId) {
+        // `LateContext::typeck_results` is only valid inside a body, so the
+        // results are fetched per body as one is entered.
+        let prev = self.typeck.replace(self.cx.tcx.typeck_body(id));
+        self.visit_body(self.cx.tcx.hir_body(id));
+        self.typeck = prev;
+    }
+
+    fn visit_qpath(&mut self, qpath: &'tcx QPath<'tcx>, id: HirId, _: Span) {
+        let res = match qpath {
+            QPath::Resolved(_, path) => path.res,
+            // `Foo::new` desugars to a type relative path, so this is the form
+            // most constructor calls take.
+            QPath::TypeRelative(..) => self
+                .typeck
+                .and_then(|typeck| typeck.type_dependent_def(id))
+                .map_or(Res::Err, |(kind, did)| Res::Def(kind, did)),
+        };
+
+        if let Some(did) = res.opt_def_id() {
+            self.record(did);
+        }
+
+        walk_qpath(self, qpath, id);
+    }
+
+    fn visit_path(&mut self, path: &Path<'tcx>, _: HirId) {
+        if let Some(did) = path.res.opt_def_id() {
+            self.record(did);
+        }
+
+        walk_path(self, path);
+    }
+
+    fn visit_expr(&mut self, expr: &'tcx Expr<'tcx>) {
+        // A method call resolves through the receiver's type rather than a
+        // path, so it is the one reference that needs the type checking
+        // results.
+        if matches!(expr.kind, ExprKind::MethodCall(..))
+            && let Some(typeck) = self.typeck
+            && let Some(did) = typeck.type_dependent_def_id(expr.hir_id)
+        {
+            self.record(did);
+        }
+
+        walk_expr(self, expr);
     }
 }
 

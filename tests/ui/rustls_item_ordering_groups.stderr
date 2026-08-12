@@ -1,11 +1,11 @@
 error: incorrect ordering of items (a specific trait `impl` block must come before a common trait `impl` block)
-  --> tests/ui/rustls_item_ordering_groups.rs:60:1
+  --> tests/ui/rustls_item_ordering_groups.rs:55:1
    |
 LL | impl Ladoo for &Mochi {}
    | ^^^^^^^^^^^^^^^^^^^^^^^^
    |
 note: should be placed before a common trait `impl` block
-  --> tests/ui/rustls_item_ordering_groups.rs:51:1
+  --> tests/ui/rustls_item_ordering_groups.rs:46:1
    |
 LL | / impl Clone for Mochi {
 LL | |     fn clone(&self) -> Self {
@@ -17,7 +17,7 @@ LL | | }
    = help: to override `-D warnings` add `#[allow(clippy::rustls_item_ordering)]`
 
 error: incorrect ordering of items (an inherent `impl` block must come before a common trait `impl` block)
-  --> tests/ui/rustls_item_ordering_groups.rs:116:1
+  --> tests/ui/rustls_item_ordering_groups.rs:114:1
    |
 LL | / impl Gelato<Mochi> {
 LL | |
@@ -26,7 +26,7 @@ LL | | }
    | |_^
    |
 note: should be placed before a common trait `impl` block
-  --> tests/ui/rustls_item_ordering_groups.rs:107:1
+  --> tests/ui/rustls_item_ordering_groups.rs:105:1
    |
 LL | / impl<T: Clone> Clone for Gelato<T> {
 LL | |     fn clone(&self) -> Self {
@@ -34,6 +34,78 @@ LL | |         Gelato(self.0.clone())
 LL | |     }
 LL | | }
    | |_^
+
+error: `Mochi` uses `Ladoo`, which is defined above it
+  --> tests/ui/rustls_item_ordering_groups.rs:37:8
+   |
+LL | struct Mochi;
+   |        ^^^^^
+   |
+note: `Ladoo` could be placed below `Mochi` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_groups.rs:31:7
+   |
+LL | trait Ladoo {}
+   |       ^^^^^
+
+error: `Halva` uses `Mochi`, which is defined above it
+  --> tests/ui/rustls_item_ordering_groups.rs:72:6
+   |
+LL | type Halva = Mochi;
+   |      ^^^^^
+   |
+note: `Mochi` could be placed below `Halva` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_groups.rs:37:8
+   |
+LL | struct Mochi;
+   |        ^^^^^
+
+error: `Gelato` uses `Ladoo`, which is defined above it
+  --> tests/ui/rustls_item_ordering_groups.rs:85:8
+   |
+LL | struct Gelato<T>(T);
+   |        ^^^^^^
+   |
+note: `Ladoo` could be placed below `Gelato` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_groups.rs:31:7
+   |
+LL | trait Ladoo {}
+   |       ^^^^^
+
+error: `Gelato` uses `Mochi`, which is defined above it
+  --> tests/ui/rustls_item_ordering_groups.rs:85:8
+   |
+LL | struct Gelato<T>(T);
+   |        ^^^^^^
+   |
+note: `Mochi` could be placed below `Gelato` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_groups.rs:37:8
+   |
+LL | struct Mochi;
+   |        ^^^^^
+
+error: `Affogato` uses `Ladoo`, which is defined above it
+  --> tests/ui/rustls_item_ordering_groups.rs:122:8
+   |
+LL | struct Affogato;
+   |        ^^^^^^^^
+   |
+note: `Ladoo` could be placed below `Affogato` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_groups.rs:31:7
+   |
+LL | trait Ladoo {}
+   |       ^^^^^
+
+error: `Bienenstich` uses `Ladoo`, which is defined above it
+  --> tests/ui/rustls_item_ordering_groups.rs:125:8
+   |
+LL | struct Bienenstich;
+   |        ^^^^^^^^^^^
+   |
+note: `Ladoo` could be placed below `Bienenstich` to maintain top-down ordering
+  --> tests/ui/rustls_item_ordering_groups.rs:31:7
+   |
+LL | trait Ladoo {}
+   |       ^^^^^
 
 error: incorrect ordering of items (an inherent `impl` block must come before a specific trait `impl` block)
   --> tests/ui/rustls_item_ordering_groups.rs:162:5
@@ -52,5 +124,5 @@ note: should be placed before a specific trait `impl` block
 LL |     impl Ladoo for Kulfi {}
    |     ^^^^^^^^^^^^^^^^^^^^^^^
 
-error: aborting due to 3 previous errors
+error: aborting due to 9 previous errors
 

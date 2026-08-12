@@ -1,5 +1,5 @@
 error: incorrect ordering of items (a specific trait `impl` block must come before a common trait `impl` block)
-  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:33:1
+  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:35:1
    |
 LL | / impl core::fmt::Debug for Dobos {
 LL | |
@@ -10,7 +10,7 @@ LL | | }
    | |_^
    |
 note: should be placed before a common trait `impl` block
-  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:29:1
+  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:31:1
    |
 LL | / impl Bombolone for Dobos {
 LL | |     fn bombolone(&self) {}
@@ -20,7 +20,7 @@ LL | | }
    = help: to override `-D warnings` add `#[allow(clippy::rustls_item_ordering)]`
 
 error: incorrect ordering of items (an inherent `impl` block must come before a common trait `impl` block)
-  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:50:1
+  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:52:1
    |
 LL | / impl Praline {
 LL | |
@@ -29,7 +29,7 @@ LL | | }
    | |_^
    |
 note: should be placed before a common trait `impl` block
-  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:44:1
+  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:46:1
    |
 LL | / impl Default for Praline {
 LL | |     fn default() -> Self {
@@ -38,5 +38,29 @@ LL | |     }
 LL | | }
    | |_^
 
-error: aborting due to 2 previous errors
+error: `Canele` uses `Bombolone`, which is defined above it
+  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:12:12
+   |
+LL | pub struct Canele;
+   |            ^^^^^^
+   |
+note: `Bombolone` could be placed below `Canele` to maintain top-down ordering
+  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:5:11
+   |
+LL | pub trait Bombolone {
+   |           ^^^^^^^^^
+
+error: `Dobos` uses `Bombolone`, which is defined above it
+  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:28:12
+   |
+LL | pub struct Dobos;
+   |            ^^^^^
+   |
+note: `Bombolone` could be placed below `Dobos` to maintain top-down ordering
+  --> tests/ui-toml/rustls_item_ordering/rustls_item_ordering.rs:5:11
+   |
+LL | pub trait Bombolone {
+   |           ^^^^^^^^^
+
+error: aborting due to 4 previous errors
 

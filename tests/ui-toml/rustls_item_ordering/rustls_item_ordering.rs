@@ -10,6 +10,7 @@ pub trait Bombolone {
 // trait here and is allowed to precede the common `Bombolone` impl. Under the
 // default configuration `Debug` is a common trait and this ordering lints.
 pub struct Canele;
+//~^ rustls_item_ordering
 
 impl core::fmt::Debug for Canele {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -25,6 +26,7 @@ impl Bombolone for Canele {
 // the common trait and `Debug` the specific one. Under the default
 // configuration this ordering is accepted.
 pub struct Dobos;
+//~^ rustls_item_ordering
 
 impl Bombolone for Dobos {
     fn bombolone(&self) {}
